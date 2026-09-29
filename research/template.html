@@ -1,0 +1,271 @@
+<title>标普500尾盘反转回测</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+/* 布局：单栏研究报告；结论在最前，证据由核心到细节，表格各自横向滚动 */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#18202b; --muted:#5a6575; --line:#dde2e9; --soft:#eef1f5;
+  --accent:#8a5300; --accent-soft:#fbf1e2;
+  --pos:#1d7a4c; --neg:#b3261e;
+  --c1:#2f6fb5; --c2:#9cbde3; --c3:#b3261e; --c4:#e8a39c; --c5:#18202b;
+  --f-display:"Noto Serif SC","Songti SC",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161c; --surface:#1a2029; --ink:#e7ebf0; --muted:#9aa5b4; --line:#2d3643; --soft:#212833;
+  --accent:#e0a54f; --accent-soft:#2a2216; --pos:#5cc58d; --neg:#f08a80;
+  --c1:#6fa5e0; --c2:#3f5f85; --c3:#f08a80; --c4:#8a4a44; --c5:#e7ebf0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161c; --surface:#1a2029; --ink:#e7ebf0; --muted:#9aa5b4; --line:#2d3643; --soft:#212833;
+  --accent:#e0a54f; --accent-soft:#2a2216; --pos:#5cc58d; --neg:#f08a80;
+  --c1:#6fa5e0; --c2:#3f5f85; --c3:#f08a80; --c4:#8a4a44; --c5:#e7ebf0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.7;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;display:flex;flex-direction:column;gap:40px}
+header{display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-size:12px;letter-spacing:.12em;color:var(--accent);font-weight:700}
+h1{font-family:var(--f-display);font-size:clamp(26px,4.2vw,36px);line-height:1.25;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:21px;margin:0;text-wrap:balance}
+h3{font-size:15px;margin:0}
+p{margin:0;max-width:68ch}
+.lede{font-size:16.5px;color:var(--ink)}
+.muted{color:var(--muted)}
+section{display:flex;flex-direction:column;gap:14px;min-width:0}
+.verdict{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.verdict h2{color:var(--accent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .k{font-size:12.5px;color:var(--muted)}
+.tile .v{font-family:var(--f-num);font-size:24px;font-weight:500;font-variant-numeric:tabular-nums}
+.tile .s{font-size:12.5px;color:var(--muted)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}
+th{background:var(--soft);font-weight:500;color:var(--muted);font-size:12.5px;position:sticky;top:0}
+td:first-child,th:first-child,td.l,th.l{text-align:left}
+td.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tr.grp td{background:var(--soft);font-weight:700;text-align:left;color:var(--ink)}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 8px 6px}
+.chart svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:4px 8px 8px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:18px;height:3px;border-radius:2px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+code,.mono{font-family:var(--f-num);font-size:12.5px;background:var(--soft);padding:1px 5px;border-radius:4px}
+pre{font-family:var(--f-num);font-size:12.5px;background:var(--soft);padding:12px 14px;border-radius:8px;overflow-x:auto;margin:0;line-height:1.6}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;max-width:70ch}
+a{color:var(--c1)}
+.note{font-size:13px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">回测报告 · 2026 年 9 月 30 日 · 标普 500 · 2011–2026</div>
+  <h1>标普500尾盘反转回测</h1>
+  <p class="lede">策略设想：每天尾盘买入标普 500 里跌得最多的股票，第二天尾盘卖出。我用 15 年日线、近 3 年的 60 分钟线、按日期的历史成分股和 SEC 财报时间做了回测，测试了你最初的版本和完善后的计划版本。</p>
+</header>
+
+<section class="verdict" id="verdict">
+  <h2>结论：扣除成本后不赚钱，不建议实盘</h2>
+  <p>大跌股票第二天<strong>跑赢大盘</strong>的幅度平均只有几个基点，接近 0，而且各年份方向不稳定。“第二天上涨概率高”其实是大盘本身在涨：2011–2026 年 SPY 有 55% 的交易日上涨，而大跌股票第二天上涨的概率只有 52–53%。完善后的规格（剔除大盘影响、剔除财报股）反而略微为负：没有新闻的异常大跌，第二天平均还会继续跑输大盘。来回交易一次的成本约 10bp（机构）或 20–25bp（1 万美元的 IBKR 小账户），远大于这点超额。</p>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<section id="evidence">
+  <h2>核心证据：入选股票第二天的表现</h2>
+  <p class="muted">不做组合、不扣成本，只看每一笔入选股票从当天收盘到次日收盘的收益。“超额”= 减去 SPY 同期收益；“残差”= 减去 β×SPY。残差 t 值绝对值小于 2，说明和 0 没有统计上的差别。1bp = 0.01%。</p>
+  <div class="scroll"><table id="t-evidence"></table></div>
+</section>
+
+<section id="daily">
+  <h2>长周期回测（2011–2026，收盘价信号近似）</h2>
+  <p class="muted">60 分钟线只有近 3 年，所以更早的年份用“收盘价算信号、收盘价成交”近似。它有轻微前视偏差，结果会略微偏好。下一节会用真实的 15:30 信号对照。</p>
+  <div class="chart"><div id="c1"></div><div class="legend" id="l1"></div></div>
+  <div class="scroll"><table id="t-daily"></table></div>
+</section>
+
+<section id="intraday">
+  <h2>真实信号回测（2023-10 至 2026-09，15:30 价格）</h2>
+  <p class="muted">用 60 分钟线在美东 15:30 的价格计算信号，收盘前用 MOC 单成交。这是你实盘时真正能做到的版本。“小账户”= 1 万美元示例账户，IBKR 阶梯佣金（每股 0.0035 美元，每笔最低 0.35 美元）加 2.5bp 滑点和费用。</p>
+  <div class="chart"><div id="c2"></div><div class="legend" id="l2"></div></div>
+  <div class="scroll"><table id="t-intraday"></table></div>
+</section>
+
+<section id="lookahead">
+  <h2>前视偏差有多大</h2>
+  <p class="muted">同一时间窗口（2023-10 至 2026-09）、零成本，比较“用收盘价算信号”和“用 15:30 价格算信号”。原始设想用收盘价算信号，会把年化收益高估约 4 个百分点；计划规格几乎没有差别。所以长周期的日线近似结果只是略微偏乐观，不影响结论。</p>
+  <div class="scroll"><table id="t-look"></table></div>
+</section>
+
+<section id="grid">
+  <h2>换参数能不能救回来</h2>
+  <p class="muted" id="grid-note"></p>
+  <div class="scroll"><table id="t-grid"></table></div>
+</section>
+
+<section id="yearly">
+  <h2>分年收益</h2>
+  <div class="scroll"><table id="t-year"></table></div>
+</section>
+
+<section id="deliver">
+  <h2>已经装到你电脑上的程序</h2>
+  <p>位置：<code>~/quant/reversal/</code>，是 qsys 里的独立模块，不改动你原有的代码和数据。它用你现有的 venv 运行；我在同样的 Python 3.8、pandas 2.0.3 环境下测试过，也在你电脑上跑通了回测和实时信号。</p>
+  <div class="two">
+    <div class="card"><h3>双击运行</h3>
+      <ul>
+        <li><code>反转策略_1_更新数据并回测.command</code>：更新数据，重跑回测，打开报告</li>
+        <li><code>反转策略_2_尾盘信号_模拟盘.command</code>：尾盘生成 MOC 订单清单，按全部成交记入模拟盘</li>
+      </ul></div>
+    <div class="card"><h3>每天的时间（北京时间）</h3>
+      <ul>
+        <li>上午：更新数据（美股已收盘）</li>
+        <li>03:30–03:45 运行尾盘信号；11 月 1 日美国结束夏令时后改为 04:30–04:45</li>
+        <li>MOC 截止：NYSE 15:50，Nasdaq 15:55（美东）</li>
+      </ul></div>
+  </div>
+  <pre>cd ~/quant/reversal
+../venv/bin/python scripts/update_data.py      # 更新数据
+../venv/bin/python scripts/run_backtest.py     # 回测 → results/report.html（加 --grid 跑参数网格）
+../venv/bin/python scripts/live_signal.py      # 尾盘信号 + MOC 清单（新浪实时行情）
+../venv/bin/python scripts/paper_track.py      # 模拟盘净值</pre>
+  <p class="note">程序只生成订单清单，不会自动下单。所有参数在 <code>config.yaml</code>；你最初的版本和计划规格的差别写在 <code>rev/scenarios.py</code>。</p>
+</section>
+
+<section id="data">
+  <h2>数据源</h2>
+  <div class="scroll"><table>
+    <tr><th class="l">用途</th><th class="l">现在用的（免费）</th><th class="l">要更严谨时可以升级</th></tr>
+    <tr><td>日线、分红、拆股</td><td class="l">雅虎财经，2010 年起；只有现存代码</td><td class="l"><a href="https://norgatedata.com/prices.php" target="_blank" rel="noopener">Norgate</a> Platinum：含退市股和历史成分，仅日线</td></tr>
+    <tr><td>日内 K 线</td><td class="l">雅虎 60 分钟线，约 730 天；本地会一直累积</td><td class="l"><a href="https://massive.com/pricing" target="_blank" rel="noopener">Massive（原 Polygon）</a>：Developer 79 美元/月含 10 年分钟线；<a href="https://alpaca.markets/data" target="_blank" rel="noopener">Alpaca</a> 免费版有 7 年以上历史（IEX）</td></tr>
+    <tr><td>历史成分股</td><td class="l">github.com/fja05680/sp500 + 维基百科</td><td class="l">Norgate Platinum</td></tr>
+    <tr><td>财报时间</td><td class="l">SEC EDGAR 8-K Item 2.02，精确到秒</td><td class="l">—</td></tr>
+    <tr><td>实时行情</td><td class="l">新浪美股（国内直连）/ 雅虎</td><td class="l"><a href="https://www.interactivebrokers.com/en/pricing/research-news-marketdata.php" target="_blank" rel="noopener">IBKR</a> US Securities Snapshot 套餐 10 美元/月（佣金达标可免）</td></tr>
+    <tr><td>未来财报、除息日</td><td class="l">Nasdaq 官网日历接口</td><td class="l">—</td></tr>
+  </table></div>
+</section>
+
+<section id="limits">
+  <h2>这次回测的局限</h2>
+  <ul>
+    <li>幸存者偏差没有完全消除：退市、被收购公司的行情雅虎没有。2011 年每天约 340 只成分股有数据，2026 年约 500 只。缺失的股票如果包含破产股，真实结果会更差。</li>
+    <li>用你电脑上 qsys 的新浪数据（只含当前成分股）交叉检验：跌幅前 30 只次日超额为 2.0bp（2014–2019）、2.6bp（2020–2022）、7.6bp（2023–2026），数量级一致，同样远小于成本。</li>
+    <li>2011–2023 年只能用收盘价信号近似，15:30 真实信号只覆盖约 3 年。</li>
+    <li>回测按权重计算，没有模拟整数股取整。1 万美元账户买不起单价超过约 750 美元的股票，实盘清单会自动放弃这些股票。</li>
+    <li>回测结果不代表未来收益，也不构成投资建议。</li>
+  </ul>
+</section>
+</div>
+
+<script>
+const D = __DATA__;
+const $ = id => document.getElementById(id);
+const pct = (v,d=1) => v==null||isNaN(v) ? "—" : (v*100).toFixed(d)+"%";
+const num = (v,d=2) => v==null||isNaN(v) ? "—" : Number(v).toFixed(d);
+const sg = v => v==null||isNaN(v) ? "" : (v>0?"pos":(v<0?"neg":""));
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+// ---- 关键数字 ----
+(function(){
+  const plan = D.TR.filter(r=>r.s==="计划规格" && !r.p.includes("15:30"));
+  const n = plan.reduce((a,r)=>a+r.n,0), ex = plan.reduce((a,r)=>a+r.ex*r.n,0)/n;
+  const orig = D.TR.filter(r=>r.s==="原始设想：跌幅前30只" && !r.p.includes("15:30"));
+  const n2 = orig.reduce((a,r)=>a+r.n,0), ex2 = orig.reduce((a,r)=>a+r.ex*r.n,0)/n2;
+  const acct = D.PI.find(r=>r.s==="计划规格" && r.c==="小账户1万美元");
+  const acct0 = D.PI.find(r=>r.s==="原始设想：跌幅前30只" && r.c==="小账户1万美元");
+  const spy = D.PI.find(r=>r.s==="SPY 买入持有");
+  const tiles = [
+    ["原始设想：次日相对 SPY 超额", (ex2>=0?"+":"")+ex2.toFixed(1)+" bp", "2011–2026，每笔平均，零成本"],
+    ["计划规格：次日相对 SPY 超额", (ex>=0?"+":"")+ex.toFixed(1)+" bp", "2011–2026，每笔平均，零成本"],
+    ["1 万美元小账户，15:30 真实信号", acct? pct(acct.cagr) : "—", "计划规格年化；原始设想 "+(acct0?pct(acct0.cagr):"—")],
+    ["同期 SPY 买入持有", spy? pct(spy.cagr) : "—", "2023-10 至 2026-09 年化"],
+  ];
+  $("tiles").innerHTML = tiles.map(t=>`<div class="tile"><div class="k">${t[0]}</div><div class="v">${t[1]}</div><div class="s">${t[2]}</div></div>`).join("");
+})();
+
+// ---- 逐笔证据 ----
+(function(){
+  let h = `<tr><th class="l">方案</th><th class="l">区间</th><th>笔数</th><th>次日收益</th><th>次日超额</th><th>次日残差</th><th>上涨概率</th><th>残差 t 值</th></tr>`;
+  let last = "";
+  for (const r of D.TR){
+    if (r.s!==last){ h += `<tr class="grp"><td colspan="8">${esc(r.s)}</td></tr>`; last=r.s; }
+    h += `<tr><td></td><td class="l">${esc(r.p)}</td><td class="num">${r.n.toLocaleString()}</td>
+      <td class="num ${sg(r.ret)}">${num(r.ret,1)} bp</td><td class="num ${sg(r.ex)}">${num(r.ex,1)} bp</td>
+      <td class="num ${sg(r.res)}">${num(r.res,1)} bp</td><td class="num">${pct(r.up,1)}</td><td class="num">${num(r.t,2)}</td></tr>`;
+  }
+  $("t-evidence").innerHTML = h;
+})();
+
+// ---- 表现表 ----
+function perfTable(id, rows, showPeriod){
+  let h = `<tr><th class="l">方案</th><th class="l">成本</th>${showPeriod?'<th class="l">区间</th>':''}<th>年化收益</th><th>夏普</th><th>最大回撤</th><th>平均仓位</th><th>平均持股</th><th>年成本</th></tr>`;
+  let last="";
+  for (const r of rows){
+    const first = r.s!==last; last=r.s;
+    h += `<tr${first?' style="border-top:2px solid var(--line)"':''}><td>${first?esc(r.s):""}</td><td class="l">${esc(r.c)}</td>${showPeriod?`<td class="l">${esc(r.p)}</td>`:''}
+      <td class="num ${sg(r.cagr)}">${pct(r.cagr)}</td><td class="num ${sg(r.sh)}">${num(r.sh)}</td><td class="num">${pct(r.dd)}</td>
+      <td class="num">${pct(r.gross,0)}</td><td class="num">${num(r.n,1)}</td><td class="num">${r.cost==null||isNaN(r.cost)?"—":pct(r.cost)}</td></tr>`;
+  }
+  $(id).innerHTML = h;
+}
+perfTable("t-daily", D.PD, true);
+perfTable("t-intraday", D.PI, false);
+
+// ---- 前视偏差 ----
+(function(){
+  let h = `<tr><th class="l">方案</th><th class="l">信号价格</th><th>年化收益</th><th>夏普</th><th>最大回撤</th></tr>`;
+  for (const r of D.look) h += `<tr><td>${esc(r["方案"])}</td><td class="l">${esc(r["信号价格"])}</td><td class="num ${sg(r["年化收益"])}">${pct(r["年化收益"])}</td><td class="num ${sg(r["夏普(超额)"])}">${num(r["夏普(超额)"])}</td><td class="num">${pct(r["最大回撤"])}</td></tr>`;
+  $("t-look").innerHTML = h;
+})();
+
+// ---- 网格 ----
+(function(){
+  const b = D.G[0];
+  $("grid-note").textContent = `在计划规格上换了 ${D.n_all} 组参数（残差基准、z 阈值、持股数、持有天数、是否对冲），按机构成本 5bp 计算。只能用训练期（2011–2019）挑参数，验证期和测试期是事后检验。${D.n_all} 组里训练期夏普为正的只有 ${D.n_pos_train} 组。训练期最好的一组（${b.b}残差、z≤${b.z}、持有 ${b.h} 天）训练期年化只有 ${pct(b.trc)}，到了验证期夏普变成 ${num(b.va)}。持有更久、换手更低会亏得少一些，但没有一组接近上线标准（扣除 10bp 成本后夏普 ≥ 0.8）。下表是训练期最好的 10 组：`;
+  let h = `<tr><th class="l">残差基准</th><th>z 阈值</th><th>最多持股</th><th>持有天数</th><th class="l">对冲</th><th>训练期夏普</th><th>验证期夏普</th><th>测试期夏普</th><th>训练期年化</th><th>验证期年化</th><th>测试期年化</th></tr>`;
+  for (const r of D.G) h += `<tr><td>${r.b}</td><td class="num">${r.z}</td><td class="num">${r.n}</td><td class="num">${r.h}</td><td class="l">${r.hg}</td>
+    <td class="num ${sg(r.tr)}">${num(r.tr)}</td><td class="num ${sg(r.va)}">${num(r.va)}</td><td class="num ${sg(r.te)}">${num(r.te)}</td>
+    <td class="num ${sg(r.trc)}">${pct(r.trc)}</td><td class="num ${sg(r.vac)}">${pct(r.vac)}</td><td class="num ${sg(r.tec)}">${pct(r.tec)}</td></tr>`;
+  $("t-grid").innerHTML = h;
+})();
+
+// ---- 分年 ----
+(function(){
+  let h = `<tr><th class="l">方案</th>${D.years.map(y=>`<th>${y}</th>`).join("")}</tr>`;
+  for (const r of D.YR) h += `<tr><td>${esc(r.name)}</td>${D.years.map(y=>{const v=r.v[y]; return `<td class="num ${sg(v)}">${pct(v,1)}</td>`}).join("")}</tr>`;
+  $("t-year").innerHTML = h;
+})();
+
+// ---- 折线图（对数坐标）----
+function lineChart(el, legend, series){
+  const W=960, H=340, L=58, R=16, T=14, B=30;
+  const cols = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)"];
+  const dash = ["","5 4","","5 4",""];
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  for (const s of series) for (const [t,v] of s.pts){ if(v>0){x0=Math.min(x0,t);x1=Math.max(x1,t);y0=Math.min(y0,Math.log10(v));y1=Math.max(y1,Math.log10(v));} }
+  const pad=(y1-y0)*0.06||0.05; y0-=pad; y1+=pad;
+  const X=t=>L+(W-L-R)*(t-x0)/(x1-x0), Y=v=>T+(H-T-B)*(1-(Math.log10(v)-y0)/(y1-y0));
+  // 刻度：选 1-2-5 序列里落在范围内的值
+  const cand=[0.05,0.1,0.2,0.3,0.5,0.7,1,1.5,2,3,5,7,10,20,50];
+  let ticks=cand.filter(v=>Math.log10(v)>=y0&&Math.log10(v)<=y1);
+  if (ticks.length>7) ticks=ticks.filter((v,i)=>i%2===0);
+  let g=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="净值曲线">`;
+  for (const v of ticks){ const y=Y(v); g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="${v===1?1.5:1}"/><text x="${L-8}" y="${y+4}" font-size="12" text-anchor="end" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${v}</text>`; }
+  const d0=new Date(x0*864e5), d1=new Date(x1*864e5);
+  const span=d1.getUTCFullYear()-d0.getUTCFullYear();
+  const step= span>8?2:1;
+  for (let yr=d0.getUTCFullYear()+1; yr<=d1.getUTCFullYear(); yr+=step){ const t=Date.UTC(yr,0,1)/864e5; const x=X(t); g+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${H-B}" stroke="var(--line)" stroke-opacity=".5"/><text x="${x}" y="${H-10}" font-size="12" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${yr}</text>`; }
+  series.forEach((s,i)=>{ const p=s.pts.filter(q=>q[1]>0).map(([t,v])=>`${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+    g+=`<polyline fill="none" stroke="${cols[i%5]}" stroke-width="${i===4?2.2:1.8}" stroke-dasharray="${dash[i%5]}" points="${p}"/>`;
+    const lp=s.pts[s.pts.length-1]; g+=`<circle cx="${X(lp[0])}" cy="${Y(lp[1])}" r="3" fill="${cols[i%5]}"/>`; });
+  g+=`</svg>`;
+  el.innerHTML=g;
+  legend.innerHTML=series.map((s,i)=>{const lp=s.pts[s.pts.length-1][1]; return `<span><i style="background:${cols[i%5]}"></i>${esc(s.name)} <b class="mono">${lp.toFixed(2)}</b></span>`}).join("");
+}
+lineChart($("c1"), $("l1"), D.CH1);
+lineChart($("c2"), $("l2"), D.CH2);
+</script>

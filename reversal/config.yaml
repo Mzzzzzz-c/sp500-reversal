@@ -1,0 +1,73 @@
+# ============================================================
+#  尾盘超跌反转策略 —— 配置（调参只改这里）
+#  运行方式见 README.md
+# ============================================================
+
+data:
+  dir: data                    # 行情缓存目录（相对 reversal/）
+  start: "2010-01-01"          # 日线起点
+  proxy: null                  # 国内访问雅虎需要代理时填，例如 "http://127.0.0.1:1087"；也可设环境变量 HTTPS_PROXY
+  sec_user_agent: "qsys-research admin@example.com"   # SEC 要求带联系方式，可改成你自己的邮箱
+
+signal:
+  time: "15:30"                # 计算信号的时刻（美东）。回测用 60 分钟线在 15:30 的价格
+  beta_window: 60              # β、残差波动率的回看天数
+  beta_clip: [0.3, 2.5]
+  benchmark: spy               # spy = 剔除 β×SPY；sector = 剔除 β×行业ETF（行业ETF缺失时退回 SPY）
+  rank_by: z                   # z = 按残差 z 值排序；raw = 按原始跌幅排序（你最初的设想）
+  z_max: -2.0                  # 入选条件：z ≤ 这个值
+  resid_max: -0.02             # 入选条件：残差跌幅 ≤ -2%
+  raw_max: null                # 可选：原始跌幅 ≤ 这个值（例如 -0.05 表示跌超 5%）
+  max_names: 30                # 每天最多买几只
+  sector_max_names: 5          # 同一行业最多几只
+
+filters:
+  min_price: 5
+  min_adv_usd: 50000000        # 20 日平均成交额下限（美元）
+  min_history: 80              # 至少多少个交易日的历史
+  earnings_recent: true        # F2：剔除前一天或当天发布财报的股票
+  earnings_next: true          # F3：剔除将在今天盘后/明天盘前发布财报的股票（避免拿着过财报）
+  ex_dividend: true            # F4：剔除当天除息的股票
+  gap_news: exclude            # F5：跳空 ≤ gap_threshold 且尾盘仍低于开盘 → exclude（剔除）/ only（只做这类）/ keep（不管）
+  gap_threshold: -0.03
+  volume_spike: 4.0            # F6：截至信号时刻的成交量 ÷ 过去20日同时段均量 > 该值则剔除；null = 不过滤
+  min_down_streak: null        # F8：可选，要求至少连跌几天（含当天）
+
+portfolio:
+  weighting: inverse_vol       # equal / inverse_vol
+  max_weight: 0.05             # 单只上限（占账户净值）
+  sector_max_weight: 0.25      # 单行业上限
+  gross_max: 1.0               # 多头总仓位上限
+  adv_max_frac: 0.005          # 单只仓位 ≤ 日均成交额的 0.5%
+  hold_days: 1                 # 持有天数：1 = 次日尾盘卖出；k>1 时每天用 1/k 资金建一批，各持有 k 天
+  exit: close                  # close = 次日收盘卖（MOC）；open = 次日开盘卖（只赚隔夜）
+  hedge: false                 # true = 同时做空 β 加权的 SPY
+  rebalance_band: 0.2          # 继续持有的股票，目标权重变化小于 20% 就不调仓（省手续费）
+
+risk:
+  vix_half: 30                 # VIX ≥ 30 仓位减半
+  vix_stop: 45                 # VIX ≥ 45 不开新仓
+  spy_drop_half: null          # SPY 当日跌幅 ≤ 该值（如 -0.03）时仓位减半；null = 不用
+  dd_half: 0.10                # 策略（未降仓的影子净值）回撤 ≥ 10% 仓位减半
+  dd_stop: 0.20                # 回撤 ≥ 20% 暂停，影子净值回撤修复到 < 10% 后恢复
+  daily_loss_stop: 0.03        # 单日亏损 ≥ 3%，次日不开新仓
+
+costs:
+  bps_per_side: 2              # 按比例成本（滑点、冲击），单边，基点。MOC 收盘竞价成交价差很小
+  commission_per_share: 0.0035 # IBKR 阶梯佣金（Tiered）
+  min_commission: 0.35         # 每笔最低佣金（美元）
+  max_commission_pct: 0.01     # 每笔佣金上限 = 成交额 1%
+  fees_bps: 0.5                # 交易所/清算/监管费用近似，单边
+  hedge_bps: 1                 # SPY 对冲的单边成本
+  cash_rate: tbill             # 现金利息：tbill = 3个月国债利率；0 = 不计息
+
+account:
+  value: 10000                 # 账户净值（美元，示例值，请改成你自己的）——决定最低佣金的影响、订单股数
+  fractional: false            # 是否用碎股（IBKR 碎股订单类型有限，默认用整数股）
+
+backtest:
+  start: "2011-01-01"
+  end: null
+  train: ["2011-01-01", "2019-12-31"]
+  valid: ["2020-01-01", "2022-12-31"]
+  test:  ["2023-01-01", "2099-12-31"]

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.DS_Store
+reversal/data/dataset.pkl
+reversal/logs/
+reversal/results/live/
+# 雅虎行情原始数据不上传（公开转发可能违反雅虎使用条款），运行 reversal/scripts/update_data.py 自行下载
+reversal/data/daily/
+reversal/data/intraday60/
+reversal/data/events/
